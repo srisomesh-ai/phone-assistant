@@ -135,7 +135,8 @@ class SettingsActivity : android.app.Activity() {
         dialog.show()
         // free the mic from the always-on service while teaching
         ListenService.instance?.pause()
-        listener.listen("en-IN") { heard ->
+        // preferOffline: capture with the SAME engine that listens live, so it matches.
+        listener.listen("en-IN", preferOffline = true) { heard ->
             ListenService.instance?.resume()
             dialog.dismiss()
             if (heard.isNullOrBlank()) { toast("Didn't hear it, try again"); return@listen }

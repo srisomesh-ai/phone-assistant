@@ -14,10 +14,21 @@ object UiBus {
     var text = ""
         private set
 
+    /** The most recent thing the offline listener heard — shown on the main screen for debugging. */
+    var lastHeard = ""
+        private set
+
     fun post(newStatus: String, newText: String? = null) {
         main.post {
             status = newStatus
             if (newText != null) text = newText
+            listeners.toList().forEach { it(status, text) }
+        }
+    }
+
+    fun postHeard(heard: String) {
+        main.post {
+            lastHeard = heard
             listeners.toList().forEach { it(status, text) }
         }
     }

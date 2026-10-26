@@ -19,7 +19,7 @@ class CommandListener(private val ctx: Context) {
     private var vosk: SpeechService? = null
     private var delivered = false
 
-    fun listen(lang: String, onText: (String?) -> Unit) {
+    fun listen(lang: String, preferOffline: Boolean = false, onText: (String?) -> Unit) {
         delivered = false
         val deliver: (String?) -> Unit = { t ->
             if (!delivered) {
@@ -27,6 +27,11 @@ class CommandListener(private val ctx: Context) {
                 cleanup()
                 onText(t)
             }
+        }
+        // Teaching the wake word uses the offline engine on purpose, so the stored
+        // sample is exactly what the always-on listener will hear.
+        if (preferOffline && WakeEngine.model != null) {
+            listenOffline(deliver); return
         }
         if (!SpeechRecognizer.isRecognitionAvailable(ctx)) {
             listenOffline(deliver); return

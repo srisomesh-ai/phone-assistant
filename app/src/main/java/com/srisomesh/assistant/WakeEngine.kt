@@ -109,25 +109,26 @@ object WakeMatcher {
         val text = normalize(heard)
         if (text.isEmpty()) return false
         val prefs = Prefs(ctx)
-        val name = normalize(prefs.wakeName)
-        if (name.isEmpty()) return false
+        val name = normalize(prefs.wakeName).replace(" ", "")
+        if (name.length < 3) return false
 
-        // 1. Phrases learned with "Teach wake word" (exact or very close)
+        // 1. Phrases learned with "Teach wake word" — captured with the SAME offline
+        //    engine that listens live, so this is the most reliable path.
         for (v in prefs.wakeVariants) {
             val vn = normalize(v)
-            if (vn.length >= 4 && (text.contains(vn) || windowSimilarity(text, vn) >= 0.85)) return true
+            if (vn.length < 3) continue
+            if (text.contains(vn)) return true
+            if (windowSimilarity(text, vn) >= 0.72) return true
         }
-        // 2. "hey <name>" heard close enough
-        val words = text.split(" ")
-        val nameJoined = name.replace(" ", "")
+        // 2. The name heard anywhere, with or without a "hey" in front.
+        val words = text.split(" ").filter { it.isNotEmpty() }
         for (i in words.indices) {
-            if (words[i] !in WAKE_PREFIXES) continue
-            // name may come back split into 1–3 words ("bang ru", "bun grew")
             for (len in 1..3) {
-                val end = i + 1 + len
+                val end = i + len
                 if (end > words.size) break
-                val candidate = words.subList(i + 1, end).joinToString("")
-                if (similarity(candidate, nameJoined) >= 0.7) return true
+                val candidate = words.subList(i, end).joinToString("")
+                if (similarity(candidate, name) >= 0.68) return true
+                if (name.length >= 5 && candidate.contains(name)) return true
             }
         }
         return false

@@ -114,6 +114,14 @@ class MainActivity : android.app.Activity() {
             gravity = Gravity.CENTER
         })
 
+        // live "heard" line — lets you confirm the mic/model is working and see what it hears
+        if (running && UiBus.lastHeard.isNotBlank()) {
+            cardWrap.addView(Ui.text(this, "Heard: “${UiBus.lastHeard}”", 12f, Ui.ACCENT).apply {
+                gravity = Gravity.CENTER
+                setPadding(0, dp(6), 0, 0)
+            })
+        }
+
         // start / stop button
         val toggle = Button(this).apply {
             text = if (running) "Stop listening" else "Start listening"

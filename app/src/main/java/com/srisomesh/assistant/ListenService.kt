@@ -132,7 +132,10 @@ class ListenService : Service(), RecognitionListener {
     private fun checkWake(json: String?, key: String) {
         if (busy) return
         val heard = try { JSONObject(json ?: "{}").optString(key, "") } catch (e: Exception) { "" }
-        if (heard.isNotBlank() && WakeMatcher.matches(this, heard)) onWake()
+        if (heard.isBlank()) return
+        // show what the mic/model is actually hearing (final results only), for debugging
+        if (key == "text") UiBus.postHeard(heard)
+        if (WakeMatcher.matches(this, heard)) onWake()
     }
 
     // ---------------- one conversation turn ----------------
