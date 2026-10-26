@@ -133,9 +133,13 @@ class ListenService : Service(), RecognitionListener {
         if (busy) return
         val heard = try { JSONObject(json ?: "{}").optString(key, "") } catch (e: Exception) { "" }
         if (heard.isBlank()) return
-        // show what the mic/model is actually hearing (final results only), for debugging
-        if (key == "text") UiBus.postHeard(heard)
-        if (WakeMatcher.matches(this, heard)) onWake()
+        // show what the mic/model is hearing — live, including partial words — for debugging
+        UiBus.postHeard(heard)
+        if (WakeMatcher.matches(this, heard)) {
+            // hop to the main thread: stopping the recogniser from inside its own
+            // callback thread can hang, which looked like "no response".
+            main.post { if (!busy) onWake() }
+        }
     }
 
     // ---------------- one conversation turn ----------------
