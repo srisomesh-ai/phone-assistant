@@ -22,6 +22,11 @@ class Prefs(ctx: Context) {
         get() = p.getString("commandLang", "en-IN") ?: "en-IN"
         set(v) = p.edit().putString("commandLang", v).apply()
 
+    /** Note of your home/office Wi-Fi names, for the Smart Lock "trusted place" reminder. */
+    var trustedWifi: Set<String>
+        get() = p.getStringSet("trustedWifi", emptySet()) ?: emptySet()
+        set(v) = p.edit().putStringSet("trustedWifi", v).apply()
+
     var voskModelDir: String?
         get() = p.getString("voskModelDir", null)
         set(v) = p.edit().putString("voskModelDir", v).apply()
