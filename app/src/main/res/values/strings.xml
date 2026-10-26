@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Somesh Assistant</string>
+    <string name="accessibility_label">Somesh Assistant control</string>
+    <string name="accessibility_desc">Lets your assistant press WhatsApp\'s send button for voice messages you dictate, and lock the phone when you ask.</string>
+</resources>

@@ -1,0 +1,10 @@
+.gradle/
+build/
+app/build/
+local.properties
+*.iml
+.idea/
+.DS_Store
+captures/
+# release.jks IS committed on purpose: one fixed key so every new APK
+# installs over the old one. This is a private, personal app.
