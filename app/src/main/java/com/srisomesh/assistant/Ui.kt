@@ -9,6 +9,9 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
 
+/** Density-pixels → pixels. Top-level so it imports cleanly into every screen. */
+fun Context.dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+
 /** Small helpers to build the screens in code with the approved look. */
 object Ui {
     val BG = Color.parseColor("#F5F4EF")
@@ -22,8 +25,6 @@ object Ui {
     val OK_BG = Color.parseColor("#EAF3DE")
     val WARN = Color.parseColor("#854F0B")
     val LINE = Color.parseColor("#20000000")
-
-    fun Context.dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
     fun card(ctx: Context, radius: Int = 12, bg: Int = CARD): LinearLayout {
         return LinearLayout(ctx).apply {

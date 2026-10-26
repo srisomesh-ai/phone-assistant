@@ -15,7 +15,6 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
-import com.srisomesh.assistant.Ui.dp
 import java.io.File
 
 /** Settings behind the gear: wake name, teach wake word, command language, trusted Wi-Fi, AI model. */

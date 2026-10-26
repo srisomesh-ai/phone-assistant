@@ -25,7 +25,6 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.srisomesh.assistant.Ui.dp
 
 /**
  * Main screen — matches the approved sample: header, listening circle, wake name + unlock tiles,

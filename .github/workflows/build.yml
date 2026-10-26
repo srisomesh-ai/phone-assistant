@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 jobs:
   build:
@@ -24,7 +25,25 @@ jobs:
           gradle-version: "8.7"
 
       - name: Build release APK
-        run: gradle --no-daemon assembleRelease
+        id: build
+        run: |
+          set -o pipefail
+          gradle --no-daemon --stacktrace assembleRelease 2>&1 | tee build.log
+
+      - name: Report build failure to an issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAIL=$(grep -iE "e: |error:|FAILED|What went wrong|Could not|Unresolved|Caused by" build.log | head -60)
+          [ -z "$TAIL" ] && TAIL=$(tail -80 build.log)
+          BODY=$(printf 'Build #%s failed.\n\n```\n%s\n```' "${{ github.run_number }}" "$TAIL")
+          if gh issue list --state open --search "Build failures in:title" | grep -q "Build failures"; then
+            NUM=$(gh issue list --state open --search "Build failures in:title" --json number -q '.[0].number')
+            gh issue comment "$NUM" --body "$BODY"
+          else
+            gh issue create --title "Build failures" --body "$BODY"
+          fi
 
       - name: Rename APK
         run: cp app/build/outputs/apk/release/app-release.apk PhoneAssistant.apk
