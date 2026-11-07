@@ -45,20 +45,32 @@ jobs:
             gh issue create --title "Build failures" --body "$BODY"
           fi
 
-      - name: Rename APK
-        run: cp app/build/outputs/apk/release/app-release.apk PhoneAssistant.apk
+      - name: Rename APKs
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk PhoneAssistant.apk
+          cp speedometer/build/outputs/apk/release/speedometer-release.apk Speedometer.apk
 
       - uses: actions/upload-artifact@v4
         with:
           name: PhoneAssistant
           path: PhoneAssistant.apk
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Speedometer
+          path: Speedometer.apk
+
       - name: Publish as "latest" release (download on phone)
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
           name: "Phone Assistant (build ${{ github.run_number }})"
-          body: "Install PhoneAssistant.apk on Bangru / Raja. Installs over the previous version."
-          files: PhoneAssistant.apk
+          body: |
+            PhoneAssistant.apk: the voice assistant for Bangru / Raja.
+            Speedometer.apk: travel speed (road / sea / flight, works offline) and internet speed test.
+            Each installs over its previous version.
+          files: |
+            PhoneAssistant.apk
+            Speedometer.apk
           make_latest: true
           prerelease: false

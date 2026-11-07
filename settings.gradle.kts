@@ -13,4 +13,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "PhoneAssistant"
-include(":app")
+include(":app", ":speedometer")

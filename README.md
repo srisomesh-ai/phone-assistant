@@ -49,7 +49,25 @@ Without it, all the fixed commands still work; only free chat needs the model (o
 ## Building
 
 Pushing to `main` builds the signed APK with GitHub Actions and publishes it to the `latest` release.
-Locally: `gradle assembleRelease` (output in `app/build/outputs/apk/release/`).
+Locally: `gradle assembleRelease` (outputs in `app/build/outputs/apk/release/` and `speedometer/build/outputs/apk/release/`).
+
+## Speedometer app (second APK)
+
+A separate app in `speedometer/`, installed as **Speedometer.apk** from the same release.
+
+**Travel speed** (GPS, works fully offline: no internet or mobile signal needed)
+- Modes: **Road**, **Sea**, **Flight**. Units: **km/h, mph, knots, m/s**; distance in km, miles or nautical miles; altitude in metres or feet.
+- Live speed dial, top speed, average (while moving), distance, trip time, altitude, heading, GPS accuracy and satellites.
+- Keeps measuring with the screen off; live speed shows in the notification. Pause / New trip / Stop GPS.
+- When online, also shows the street/town name.
+- On a plane: Airplane mode ON, Location ON, phone near the window (first fix can take a few minutes).
+
+**Internet speed**
+- Connection details: Wi-Fi or mobile data, network name / operator, Wi-Fi 4/5/6/7 and 2.4/5/6 GHz band, 2G/3G/4G/5G, signal (dBm), Wi-Fi link rate, roaming, metered, VPN.
+- Live data use right now (download / upload, all apps).
+- Speed test: download, upload, ping, jitter, ISP and server (Cloudflare's public speed-test servers). Asks first on mobile data. Keeps a history of the last 20 tests.
+
+Permissions: Location (speed, Wi-Fi name), Phone (to tell 4G from 5G), Notifications (live speed in the notification bar).
 
 ## Next step
 
