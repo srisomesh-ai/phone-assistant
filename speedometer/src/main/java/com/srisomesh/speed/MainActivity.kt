@@ -5,6 +5,7 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.location.LocationManager
 import android.os.Build
 import android.os.Bundle
@@ -494,7 +495,7 @@ class MainActivity : Activity() {
         scanning = true
         devBtn?.text = "Stop"; devBtn?.background = Ui.rounded(this, Ui.BAD, 14)
         devCount?.text = "Scanning…"
-        devList?.removeAllViews(); deviceViews.clear()
+        devList?.removeAllViews(); deviceViews.clear(); lastDevices.clear()
         val sc = LanScanner(this)
         scanner = sc
         Thread {
@@ -509,6 +510,7 @@ class MainActivity : Activity() {
                     if (prefs.tab == 2 && scanning) devProgress?.text = "Checked $done of $total addresses…"
                 }
                 override fun onFound(device: LanScanner.Device) = postU {
+                    lastDevices[device.ip] = device
                     if (prefs.tab != 2) return@postU
                     renderDevice(device)
                     devCount?.text = "${deviceViews.size} device${if (deviceViews.size == 1) "" else "s"} found"
@@ -535,6 +537,87 @@ class MainActivity : Activity() {
         }.start()
     }
 
+    /** Tap a device → probe what's actually observable from here: live ping + which services it runs. */
+    private fun openDevice(ip: String) {
+        val d = deviceSnapshot(ip) ?: return
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            val p = dp(18); setPadding(p, p, p, p)
+        }
+        fun line(t: String, size: Float, color: Int = Ui.TEXT, bold: Boolean = false) =
+            Ui.text(this, t, size, color, bold).also { box.addView(it.apply { setPadding(0, dp(3), 0, dp(3)) }) }
+
+        val heading = when {
+            d.isSelf -> "📱 This phone"
+            d.isGateway -> "📶 Router / gateway"
+            else -> d.name ?: (d.vendor?.let { "$it device" } ?: "Device")
+        }
+        line(heading, 18f, Ui.TEXT, true)
+        line("IP: ${d.ip}", 13f, Ui.MUTED)
+        d.mac?.let { line("MAC: $it", 13f, Ui.MUTED) }
+        d.vendor?.let { line("Maker: $it", 13f, Ui.MUTED) }
+
+        val pingTitle = line("Ping", 14f, Ui.ACCENT2, true).apply { setPadding(0, dp(12), 0, dp(2)) }
+        val pingBody = line("testing…", 13f, Ui.MUTED)
+        val svcTitle = line("Services running", 14f, Ui.ACCENT2, true).apply { setPadding(0, dp(12), 0, dp(2)) }
+        val svcBody = line("scanning ports…", 13f, Ui.TEXT)
+
+        val openWeb = Ui.button(this, "Open web page", Ui.ACCENT) {
+            try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("http://${d.ip}"))) } catch (_: Exception) {}
+        }.apply { visibility = View.GONE; layoutParams = LinearLayout.LayoutParams(Ui.MATCH, Ui.WRAP).apply { topMargin = dp(12) } }
+        box.addView(openWeb)
+
+        val copyBtn = Ui.button(this, "Copy IP", Ui.SOFT) {
+            val cm = getSystemService(android.content.ClipboardManager::class.java)
+            cm?.setPrimaryClip(android.content.ClipData.newPlainText("ip", d.ip)); toastLong("Copied ${d.ip}")
+        }.apply { setTextColor(Ui.TEXT); layoutParams = LinearLayout.LayoutParams(Ui.MATCH, Ui.WRAP).apply { topMargin = dp(8) } }
+        box.addView(copyBtn)
+
+        box.addView(Ui.text(this, "This shows how the device looks on the Wi-Fi and what it runs — not whether " +
+            "it has internet or is logged in. That isn't visible from your phone.", 12f, Ui.MUTED).apply {
+            setPadding(0, dp(12), 0, 0)
+        })
+
+        val scroll = ScrollView(this).apply { addView(box); setBackgroundColor(Ui.CARD) }
+        val dlg = AlertDialog.Builder(this).setView(scroll)
+            .setPositiveButton("Close", null)
+            .setOnDismissListener { DeviceProbe.cancelScan = true }.create()
+        dlg.show()
+
+        DeviceProbe.cancelScan = false
+        Thread {
+            val r = DeviceProbe.ping(d.ip, 5) { _, _, _ -> }
+            main.post {
+                pingTitle.text = "Ping"
+                pingBody.text = if (r.received == 0) "No reply (device may block ping, or just left)"
+                else "${r.received}/${r.sent} replies · ${r.avgMs} ms avg (min ${r.minMs}, max ${r.maxMs})" +
+                    if (r.lossPct > 0) " · ${r.lossPct}% loss" else ""
+            }
+        }.start()
+        Thread {
+            val open = DeviceProbe.identify(d.ip,
+                onPort = { done, total -> main.post { if (svcBody.text.startsWith("scanning")) svcBody.text = "scanning… $done/$total" } },
+                onOpen = { _, _ -> })
+            main.post {
+                svcBody.text = if (open.isEmpty()) "No open ports found (common for phones and well-secured devices)"
+                else open.joinToString("\n") { "• ${it.second}  (port ${it.first})" }
+                val web = DeviceProbe.hasWeb(open)
+                if (web != null) {
+                    openWeb.visibility = View.VISIBLE
+                    openWeb.setOnClickListener {
+                        val scheme = if (web == 443 || web == 8443) "https" else "http"
+                        val port = if (web == 80 || web == 443) "" else ":$web"
+                        try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("$scheme://${d.ip}$port"))) } catch (_: Exception) {}
+                    }
+                }
+            }
+        }.start()
+    }
+
+    private fun deviceSnapshot(ip: String): LanScanner.Device? = lastDevices[ip]
+
+    private val lastDevices = LinkedHashMap<String, LanScanner.Device>()
+
     private fun postU(f: () -> Unit) { main.post(f) }
 
     private fun stopScan() {
@@ -549,6 +632,8 @@ class MainActivity : Activity() {
             val r = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(0, dp(10), 0, dp(10))
+                background = Ui.rounded(this@MainActivity, Ui.CARD, 8)
+                setOnClickListener { openDevice(d.ip) }
             }
             list.addView(divider()); list.addView(r)
             r

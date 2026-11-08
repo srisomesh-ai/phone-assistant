@@ -64,6 +64,7 @@ A separate app in `speedometer/`, installed as **Speedometer.apk** from the same
 
 **Devices on network** (LAN scanner)
 - Lists devices on your Wi-Fi that respond to the phone: **IP address**, **name** (mDNS / reverse-DNS / NetBIOS), **MAC + maker** where Android exposes them, ping time, and the router / your phone marked.
+- **Tap a device** to probe what *is* observable from a phone: live ping (reachability + latency, packet loss) and a service scan that names what it is (web page, printer, camera, SMB share, SSH, Plex, iPhone, etc.), with a button to open its web page if it has one.
 - Honest limits: it **cannot** tell which devices are "logged in" or which "have internet access" — that state lives on the company's Wi-Fi controller / RADIUS / firewall, not on any phone. Many MACs are hidden by Android 10+. Company Wi-Fi with per-user logins usually has **client isolation**, which hides devices from each other; the scan then shows only the gateway and your phone, and no app can get past that.
 
 **Internet speed**
