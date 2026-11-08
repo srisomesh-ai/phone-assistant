@@ -62,6 +62,10 @@ A separate app in `speedometer/`, installed as **Speedometer.apk** from the same
 - When online, also shows the street/town name.
 - On a plane: Airplane mode ON, Location ON, phone near the window (first fix can take a few minutes).
 
+**Devices on network** (LAN scanner)
+- Lists devices on your Wi-Fi that respond to the phone: **IP address**, **name** (mDNS / reverse-DNS / NetBIOS), **MAC + maker** where Android exposes them, ping time, and the router / your phone marked.
+- Honest limits: it **cannot** tell which devices are "logged in" or which "have internet access" — that state lives on the company's Wi-Fi controller / RADIUS / firewall, not on any phone. Many MACs are hidden by Android 10+. Company Wi-Fi with per-user logins usually has **client isolation**, which hides devices from each other; the scan then shows only the gateway and your phone, and no app can get past that.
+
 **Internet speed**
 - Connection details: Wi-Fi or mobile data, network name / operator, Wi-Fi 4/5/6/7 and 2.4/5/6 GHz band, 2G/3G/4G/5G, signal (dBm), Wi-Fi link rate, roaming, metered, VPN.
 - Live data use right now (download / upload, all apps).

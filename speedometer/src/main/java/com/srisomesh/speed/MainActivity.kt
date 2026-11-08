@@ -62,7 +62,7 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
-        showTab(prefs.tab)
+        showTab(prefs.tab.coerceIn(0, 2))
     }
 
     override fun onPause() {
@@ -78,16 +78,14 @@ class MainActivity : Activity() {
     private fun showTab(i: Int) {
         prefs.tab = i
         tabHolder.removeAllViews()
-        tabRow = Ui.chips(this, listOf("🚗  Travel speed", "📶  Internet speed"), i) { showTab(it) }
+        tabRow = Ui.chips(this, listOf("🚗  Travel", "📶  Internet", "📡  Devices"), i) { showTab(it) }
         tabHolder.addView(tabRow)
         stopTicker()
         content.removeAllViews()
-        if (i == 0) {
-            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-            buildTravel()
-        } else {
-            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-            buildInternet()
+        when (i) {
+            0 -> { window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON); buildTravel() }
+            1 -> { window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON); buildInternet() }
+            else -> { window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON); buildDevices() }
         }
     }
 
@@ -443,6 +441,141 @@ class MainActivity : Activity() {
     }
 
     // ======================================================================
+    // DEVICES ON NETWORK (LAN scan)
+    // ======================================================================
+
+    private var scanner: LanScanner? = null
+    private var scanning = false
+    private val deviceViews = LinkedHashMap<String, LinearLayout>()
+    private var devInfo: TextView? = null
+    private var devCount: TextView? = null
+    private var devProgress: TextView? = null
+    private var devList: LinearLayout? = null
+    private var devBtn: TextView? = null
+    private var devNote: TextView? = null
+
+    private fun buildDevices() {
+        val online = NetInfo.read(this)
+        val head = Ui.card(this)
+        head.addView(Ui.text(this, "Devices on this network", 16f, Ui.TEXT, bold = true))
+        devInfo = Ui.text(this, if (online.kind.startsWith("Wi-Fi")) "Wi-Fi: ${online.name ?: "–"}" else
+            "Best on Wi-Fi. You're on ${online.kind}.", 13f, Ui.MUTED).apply { setPadding(0, dp(4), 0, 0) }
+        head.addView(devInfo)
+        kMy = Ui.kv(this, head, "Your phone")
+        kGw = Ui.kv(this, head, "Router / gateway")
+        kNet = Ui.kv(this, head, "Scanning range")
+        devCount = Ui.text(this, "", 22f, Ui.ACCENT, bold = true).apply { setPadding(0, dp(10), 0, 0) }
+        head.addView(devCount)
+        devProgress = Ui.text(this, "", 12f, Ui.MUTED)
+        head.addView(devProgress)
+        devBtn = Ui.button(this, if (scanning) "Stop" else "Scan network", if (scanning) Ui.BAD else Ui.ACCENT) {
+            if (scanning) stopScan() else startScan()
+        }
+        head.addView(devBtn, LinearLayout.LayoutParams(Ui.MATCH, Ui.WRAP).apply { topMargin = dp(12) })
+        content.addView(head)
+
+        val listCard = Ui.card(this)
+        listCard.addView(Ui.text(this, "Found devices", 15f, Ui.TEXT, bold = true))
+        devList = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        listCard.addView(devList)
+        content.addView(listCard)
+        deviceViews.clear()
+
+        devNote = Ui.text(this, DEVICES_HELP, 13f, Ui.MUTED)
+        content.addView(Ui.card(this).apply { addView(devNote) })
+    }
+
+    private var kMy: TextView? = null
+    private var kGw: TextView? = null
+    private var kNet: TextView? = null
+
+    private fun startScan() {
+        if (NetInfo.read(this).kind == "Offline") { toastLong("Connect to Wi-Fi first."); return }
+        scanning = true
+        devBtn?.text = "Stop"; devBtn?.background = Ui.rounded(this, Ui.BAD, 14)
+        devCount?.text = "Scanning…"
+        devList?.removeAllViews(); deviceViews.clear()
+        val sc = LanScanner(this)
+        scanner = sc
+        Thread {
+            sc.scan(object : LanScanner.Listener {
+                override fun onInfo(ssid: String?, selfIp: String?, gatewayIp: String?, subnet: String?, hostCount: Int) = postU {
+                    if (prefs.tab != 2) return@postU
+                    kMy?.text = selfIp ?: "–"
+                    kGw?.text = gatewayIp ?: "–"
+                    kNet?.text = "${subnet ?: "–"}  ($hostCount hosts)"
+                }
+                override fun onProgress(done: Int, total: Int) = postU {
+                    if (prefs.tab == 2 && scanning) devProgress?.text = "Checked $done of $total addresses…"
+                }
+                override fun onFound(device: LanScanner.Device) = postU {
+                    if (prefs.tab != 2) return@postU
+                    renderDevice(device)
+                    devCount?.text = "${deviceViews.size} device${if (deviceViews.size == 1) "" else "s"} found"
+                }
+                override fun onDone(devices: List<LanScanner.Device>, isolated: Boolean) = postU {
+                    scanning = false
+                    if (prefs.tab != 2) return@postU
+                    devProgress?.text = "Scan complete"
+                    devBtn?.text = "Scan again"; devBtn?.background = Ui.rounded(this@MainActivity, Ui.ACCENT, 14)
+                    devCount?.text = "${devices.size} device${if (devices.size == 1) "" else "s"} responding"
+                    devNote?.text = if (isolated)
+                        "Only your phone and the router answered. This Wi-Fi is almost certainly using " +
+                        "client isolation (common on company Wi-Fi with individual logins), which stops devices " +
+                        "from seeing each other. No app can get past that — ask your network admin for the device " +
+                        "list.\n\n" + DEVICES_HELP
+                    else DEVICES_HELP
+                }
+                override fun onError(msg: String) = postU {
+                    scanning = false
+                    devProgress?.text = "Couldn't scan: $msg"
+                    devBtn?.text = "Scan network"; devBtn?.background = Ui.rounded(this@MainActivity, Ui.ACCENT, 14)
+                }
+            })
+        }.start()
+    }
+
+    private fun postU(f: () -> Unit) { main.post(f) }
+
+    private fun stopScan() {
+        scanner?.cancel(); scanning = false
+        devBtn?.text = "Scan network"; devBtn?.background = Ui.rounded(this, Ui.ACCENT, 14)
+        devProgress?.text = "Stopped"
+    }
+
+    private fun renderDevice(d: LanScanner.Device) {
+        val list = devList ?: return
+        val row = deviceViews.getOrPut(d.ip) {
+            val r = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(0, dp(10), 0, dp(10))
+            }
+            list.addView(divider()); list.addView(r)
+            r
+        }
+        row.removeAllViews()
+        val title = when {
+            d.isSelf -> "📱 This phone"
+            d.isGateway -> "📶 Router / gateway"
+            else -> d.name ?: (d.vendor?.let { "$it device" } ?: "Device")
+        }
+        row.addView(Ui.text(this, title, 15f, if (d.isGateway) Ui.ACCENT2 else Ui.TEXT, bold = true))
+        val detail = buildList {
+            add(d.ip)
+            d.vendor?.let { add(it) }
+            d.mac?.let { add(it) }
+            if (d.pingMs in 0..100000) add("${d.pingMs} ms")
+            d.openHint?.let { add(it) }
+        }.joinToString("  ·  ")
+        row.addView(Ui.text(this, detail, 12f, Ui.MUTED).apply { setPadding(0, dp(2), 0, 0) })
+    }
+
+    private fun divider(): View = View(this).apply {
+        layoutParams = LinearLayout.LayoutParams(Ui.MATCH, dp(1))
+        setBackgroundColor(Ui.LINE)
+    }
+
+    // ======================================================================
 
     private fun askPermissions() {
         val need = mutableListOf<String>()
@@ -462,4 +595,12 @@ class MainActivity : Activity() {
     }
 
     private fun toastLong(s: String) = android.widget.Toast.makeText(this, s, android.widget.Toast.LENGTH_LONG).show()
+
+    companion object {
+        private const val DEVICES_HELP =
+            "This lists devices on your Wi-Fi that answer the phone, with their IP, name and maker where " +
+            "available. It cannot show which devices are logged in or which have internet access — that lives " +
+            "on the company's Wi-Fi controller, not on the phone. Names and MAC/maker are blank for devices " +
+            "that don't share them (Android hides most MACs since Android 10). Turn Location ON for the best results."
+    }
 }
